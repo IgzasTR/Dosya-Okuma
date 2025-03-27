@@ -1,0 +1,113 @@
+import sys
+import pandas as pd
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QLabel, QTableWidget, QTableWidgetItem
+
+class FileReader(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        # Arayüz bileşenlerini başlat
+        self.setWindowTitle("Dosya Okuyucu")
+        self.setGeometry(100, 100, 800, 600)
+
+        # Layout ve butonları oluştur
+        layout = QVBoxLayout()
+
+        self.button = QPushButton('Dosya Seç', self)
+        self.button.clicked.connect(self.load_file)  # Buton tıklandığında load_file fonksiyonunu çağır
+
+        self.label = QLabel('Seçilen dosyanın verileri burada görünecek.', self)
+
+        self.tableWidget = QTableWidget(self)
+
+        layout.addWidget(self.button)
+        layout.addWidget(self.label)
+        layout.addWidget(self.tableWidget)
+
+        self.setLayout(layout)
+
+    def load_file(self):
+        # Dosya seçim diyalogu açılır
+        options = QFileDialog.Options()
+        file_path, _ = QFileDialog.getOpenFileName(self, "Dosya Seçin", "",
+                                                   "CSV Files (*.csv);;Text Files (*.txt);;All Files (*)", options=options)
+
+        if file_path:
+            # Dosya uzantısını kontrol et ve uygun okuma fonksiyonunu çağır
+            if file_path.endswith('.csv'):
+                self.read_csv(file_path)
+            elif file_path.endswith('.txt'):
+                self.read_txt(file_path)
+            else:
+                self.label.setText(f"Desteklenmeyen dosya türü: {file_path}")
+
+    def read_csv(self, file_path):
+        try:
+            # Pandas ayarlarını değiştirerek tüm verilerin gösterilmesini sağlıyoruz
+            pd.set_option('display.max_columns', None)  # Tüm sütunları göster
+            pd.set_option('display.width', None)       # Ekran genişliğine göre ayarlama
+            pd.set_option('display.max_rows', None)    # Tüm satırları göster
+            pd.set_option('display.max_colwidth', None)  # Sütun genişlikleri sınırlamasını kaldır
+            pd.set_option('display.expand_frame_repr', False)  # Tabloları daha uzun gösterir
+
+            # CSV dosyasını pandas ile oku ve sep=';' ile ayırıcıyı belirt
+            df = pd.read_csv(file_path, sep=';')  # Veriler ; ile ayrılmış
+
+            # Label'da dosya yolunu göster
+            self.label.setText(f"Seçilen CSV dosyası: {file_path}")
+
+            # Verileri tabloya yerleştir
+            self.load_table(df)
+        except Exception as e:
+            self.label.setText(f"CSV dosyasını okurken hata oluştu: {e}")
+
+    def read_txt(self, file_path):
+        try:
+            # TXT dosyasını okuyalım
+            with open(file_path, 'r', encoding='utf-8') as file:
+                data = file.readlines()
+
+            # Label'da dosya yolunu göster
+            self.label.setText(f"Seçilen TXT dosyası: {file_path}")
+
+            # TXT verisini tabloya yerleştir
+            self.load_txt_table(data)
+        except Exception as e:
+            self.label.setText(f"TXT dosyasını okurken hata oluştu: {e}")
+
+    def load_table(self, df):
+        # DataFrame boyutuna göre tabloyu yeniden ayarla
+        self.tableWidget.setRowCount(df.shape[0])
+        self.tableWidget.setColumnCount(df.shape[1])
+
+        # Sütun başlıklarını ayarla
+        self.tableWidget.setHorizontalHeaderLabels(df.columns)
+
+        # Hücre verilerini tabloya aktar
+        for i in range(df.shape[0]):
+            for j in range(df.shape[1]):
+                self.tableWidget.setItem(i, j, QTableWidgetItem(str(df.iloc[i, j])))
+
+        # Kolonları sıralama yapılabilir hale getir
+        self.tableWidget.setSortingEnabled(True)  # Sıralamayı etkinleştir
+
+        self.tableWidget.resizeColumnsToContents()
+
+    def load_txt_table(self, data):
+        # Tek bir sütunlu bir veri için tabloyu oluştur
+        self.tableWidget.setRowCount(len(data))
+        self.tableWidget.setColumnCount(1)
+
+        for i, line in enumerate(data):
+            self.tableWidget.setItem(i, 0, QTableWidgetItem(line.strip()))  # Strip boşlukları temizler
+
+        # Kolonları sıralama yapılabilir hale getir
+        self.tableWidget.setSortingEnabled(True)  # Sıralamayı etkinleştir
+
+        self.tableWidget.resizeColumnsToContents()
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = FileReader()
+    window.show()
+    sys.exit(app.exec_())
